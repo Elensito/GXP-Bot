@@ -12,15 +12,23 @@ class Member(commands.Cog):
         import aiosqlite
         GXP_COLOR = 0x43FF43
         XP_EMOJI = "<:xp:1396916494746779829>"
-        
+
         def format_number(num):
             """Formatea números con separadores de miles usando puntos"""
             if num is None:
                 return "0"
             return f"{int(num):,}".replace(",", ".")
-        
+
+        # Si no se especifica IGN, buscarlo en user_map por discord_id
         if not ign:
-            ign = interaction.user.display_name
+            user_id = str(interaction.user.id)
+            async with aiosqlite.connect("db/gxp_data.db") as db:
+                cursor = await db.execute("SELECT ign FROM user_map WHERE discord_id=?", [user_id])
+                row = await cursor.fetchone()
+                if row and row[0]:
+                    ign = row[0]
+                else:
+                    ign = interaction.user.display_name
         # Solo responde si no se ha respondido ya
         try:
             if not interaction.response.is_done():
