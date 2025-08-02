@@ -47,7 +47,46 @@ class Verify(commands.Cog):
                 async with aiosqlite.connect("db/gxp_data.db") as db:
                     await db.execute("INSERT OR REPLACE INTO user_map (discord_id, uuid, ign) VALUES (?, ?, ?)", (user_id, uuid, ign))
                     await db.commit()
-                await interaction.followup.send(f"✅ Successfully linked your Discord to IGN `{ign}`! You can now use `/member` and `/shop` without specifying your IGN.", ephemeral=True)
+                # Cambiar apodo y asignar rol según si está en la guild UPDATE_GUILD
+                try:
+                    if interaction.guild:
+                        member = interaction.guild.get_member(interaction.user.id)
+                        if member:
+                            await member.edit(nick=ign, reason="Verified with /verify")
+                            # Verificar si está en la guild de Hypixel
+                            update_guild = os.getenv("UPDATE_GUILD")
+                            in_guild = False
+                            # Buscar en la lista de guilds del jugador
+                            guilds = player.get("guilds")
+                            # Si la API de Hypixel no da guilds, usar endpoint de guild
+                            if not guilds:
+                                # Buscar guild por UUID
+                                async with aiohttp.ClientSession() as session2:
+                                    async with session2.get(f"https://api.hypixel.net/guild?key={HYPIXEL_API_KEY}&player={uuid}") as resp2:
+                                        if resp2.status == 200:
+                                            data2 = await resp2.json()
+                                            guild = data2.get("guild")
+                                            if guild and guild.get("name") == update_guild:
+                                                in_guild = True
+                            else:
+                                for g in guilds:
+                                    if g.get("name") == update_guild:
+                                        in_guild = True
+                                        break
+                            # Asignar rol según pertenencia
+                            role_id_in = 1401227876497494066
+                            role_id_out = 1401227867760890016
+                            role_to_add = role_id_in if in_guild else role_id_out
+                            # Quitar ambos roles antes de asignar
+                            roles_to_remove = [role_id_in, role_id_out]
+                            roles = [interaction.guild.get_role(rid) for rid in roles_to_remove]
+                            await member.remove_roles(*[r for r in roles if r in member.roles])
+                            role = interaction.guild.get_role(role_to_add)
+                            if role:
+                                await member.add_roles(role, reason="Verified with /verify")
+                except Exception as e:
+                    await interaction.followup.send(f"⚠️ Linked, but could not change nickname or assign role: {e}", ephemeral=True)
+                await interaction.followup.send(f"✅ Successfully linked your Discord to IGN `{ign}`! Your nickname and role have been updated. You can now use `/member` without specifying your IGN.", ephemeral=True)
 
 
 async def setup(bot):
