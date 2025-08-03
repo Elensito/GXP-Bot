@@ -65,11 +65,14 @@ class Link(commands.Cog):
                         continue
                     exp_history = member.get("expHistory", {})
                     for day in last_7_days:
-                        gxp = exp_history.get(day, 0)
-                        await db.execute(
-                            "INSERT OR REPLACE INTO gxp (user_id, ign, date, daily_gxp) VALUES (?, ?, ?, ?)",
-                            (uuid, ign, day, gxp)
-                        )
+                        if day in exp_history:
+                            gxp = exp_history[day]
+                            # Solo actualiza si el valor es mayor que 0
+                            if gxp > 0:
+                                await db.execute(
+                                    "INSERT OR REPLACE INTO gxp (user_id, ign, date, daily_gxp) VALUES (?, ?, ?, ?)",
+                                    (uuid, ign, day, gxp)
+                                )
                     if idx % 10 == 0 or idx == total:
                         await interaction.edit_original_response(content=f"⚡ Processing {idx}/{total} members...")
                 await db.commit()

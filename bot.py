@@ -103,16 +103,19 @@ async def on_ready():
                                 
                                 exp_history = member.get("expHistory", {})
                                 for day in last_7_days:
-                                    gxp = exp_history.get(day, 0)
-                                    cursor = await db.execute("SELECT daily_gxp FROM gxp WHERE user_id=? AND date=?", (uuid, day))
-                                    row = await cursor.fetchone()
-                                    prev_gxp = row[0] if row else None
-                                    await db.execute(
-                                        "INSERT OR REPLACE INTO gxp (user_id, ign, date, daily_gxp) VALUES (?, ?, ?, ?)",
-                                        (uuid, ign, day, gxp)
-                                    )
-                                    if prev_gxp != gxp:
-                                        print(f"[GXP SYNC] {ign} | {day}: {prev_gxp} -> {gxp}")
+                                    if day in exp_history:
+                                        gxp = exp_history[day]
+                                        # Solo actualiza si el valor es mayor que 0
+                                        if gxp > 0:
+                                            cursor = await db.execute("SELECT daily_gxp FROM gxp WHERE user_id=? AND date=?", (uuid, day))
+                                            row = await cursor.fetchone()
+                                            prev_gxp = row[0] if row else None
+                                            await db.execute(
+                                                "INSERT OR REPLACE INTO gxp (user_id, ign, date, daily_gxp) VALUES (?, ?, ?, ?)",
+                                                (uuid, ign, day, gxp)
+                                            )
+                                            if prev_gxp != gxp:
+                                                print(f"[GXP SYNC] {ign} | {day}: {prev_gxp} -> {gxp}")
                             await db.commit()
                             
                             # Recalcular Activity Points para los días actualizados
