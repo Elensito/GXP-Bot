@@ -33,10 +33,30 @@ async def on_ready():
     print(f"Bot is online as {bot.user}")
     await load_slashcommands()
 
-    # --- Tarea automática de actualización de GXP cada minuto ---
-    import aiohttp
+    # --- Recalcular activity points para días sin AP al iniciar el bot ---
     import aiosqlite
     from datetime import datetime, timedelta, timezone
+    async def recalc_missing_activity_points():
+        async with aiosqlite.connect("db/gxp_data.db") as db:
+            # Buscar días con registros de GXP pero activity_points NULL o vacíos
+            days_cursor = await db.execute("SELECT DISTINCT date FROM gxp")
+            all_days = [row[0] for row in await days_cursor.fetchall()]
+            for d in all_days:
+                # ¿Hay algún registro sin activity_points?
+                rows = await db.execute_fetchall("SELECT user_id, daily_gxp, activity_points FROM gxp WHERE date=?", (d,))
+                needs_recalc = any(ap is None for _, _, ap in rows)
+                if needs_recalc:
+                    # Recalcular para ese día
+                    rows_sorted = sorted(rows, key=lambda x: x[1], reverse=True)
+                    for rank, (uid, gxp, _) in enumerate(rows_sorted):
+                        ap = round(1.0 - (rank * 0.1), 1) if gxp > 0 and rank < 10 else 0.0
+                        await db.execute("UPDATE gxp SET activity_points=? WHERE user_id=? AND date=?", (ap, uid, d))
+                    await db.commit()
+                    print(f"[AP RECALC] Activity Points recalculated for {d}")
+    await recalc_missing_activity_points()
+
+    # --- Tarea automática de actualización de GXP cada minuto ---
+    import aiohttp
     import os
     from dotenv import load_dotenv
     load_dotenv()

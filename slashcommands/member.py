@@ -100,9 +100,24 @@ class Member(commands.Cog):
             embed.set_author(name=ign)
             gxp_str = ""
             weekly_gxp_sum = 0
-            for date, daily_gxp in gxp_rows:
-                gxp_str += f"`{date}`: `{format_number(daily_gxp or 0)}`\n"
-                weekly_gxp_sum += daily_gxp or 0
+            # Obtener el top de cada día
+            async with aiosqlite.connect("db/gxp_data.db") as db2:
+                for date, daily_gxp in gxp_rows:
+                    # Obtener ranking para ese día
+                    top_cursor = await db2.execute(
+                        "SELECT user_id, daily_gxp FROM gxp WHERE date=? ORDER BY daily_gxp DESC", [date]
+                    )
+                    top_rows = await top_cursor.fetchall()
+                    rank = None
+                    for idx, (uid, gxp_val) in enumerate(top_rows, 1):
+                        if uid == user_id:
+                            rank = idx
+                            break
+                    if rank is not None:
+                        gxp_str += f"`{date}: {format_number(daily_gxp or 0)}  #{rank}`\n"
+                    else:
+                        gxp_str += f"`{date}: {format_number(daily_gxp or 0)}`\n"
+                    weekly_gxp_sum += daily_gxp or 0
             embed.add_field(name="GXP Last 7 Days", value=gxp_str, inline=False)
             embed.add_field(name="Weekly GXP", value=f"`{format_number(weekly_gxp_sum)}`", inline=True)
             embed.add_field(name="Monthly GXP", value=f"`{format_number(monthly_gxp_sum)}`", inline=True)
