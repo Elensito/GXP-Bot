@@ -68,10 +68,11 @@ class Member(commands.Cog):
                 )
                 lifetime_row = await lifetime_cursor.fetchone()
                 lifetime_gxp_sum = int(lifetime_row[0]) if lifetime_row and lifetime_row[0] is not None else 0
-                # Activity Points: suma de TODOS los días menos lo gastado en shop
+                # Activity Points: suma de TODOS los días menos el actual, menos lo gastado en shop
+                today_str = today.isoformat()
                 ap_cursor = await db.execute(
-                    "SELECT SUM(COALESCE(activity_points, 0)) FROM gxp WHERE user_id=?",
-                    [user_id]
+                    "SELECT SUM(COALESCE(activity_points, 0)) FROM gxp WHERE user_id=? AND date <> ?",
+                    [user_id, today_str]
                 )
                 ap_row = await ap_cursor.fetchone()
                 ap_total = float(ap_row[0]) if ap_row and ap_row[0] is not None else 0.0
