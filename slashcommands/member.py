@@ -68,28 +68,13 @@ class Member(commands.Cog):
                 )
                 lifetime_row = await lifetime_cursor.fetchone()
                 lifetime_gxp_sum = int(lifetime_row[0]) if lifetime_row and lifetime_row[0] is not None else 0
-                # Activity Points: suma de los últimos 6 días (excluyendo hoy) menos lo gastado en shop
-                # Calculate reset time (06:40 UTC)
-                today_utc = datetime.utcnow()
-                reset_hour = 6
-                reset_minute = 40
-                reset_time = today_utc.replace(hour=reset_hour, minute=reset_minute, second=0, microsecond=0)
-                if today_utc < reset_time:
-                    gxp_day = (today_utc - timedelta(days=1)).date()
-                else:
-                    gxp_day = today_utc.date()
-                
-                # Calcular desde 6 días atrás hasta 1 día atrás (excluyendo hoy)
-                six_days_ago = (gxp_day - timedelta(days=6)).isoformat()
-                one_day_ago = (gxp_day - timedelta(days=1)).isoformat()
-                
+                # Activity Points: suma de TODOS los días menos lo gastado en shop
                 ap_cursor = await db.execute(
-                    "SELECT SUM(COALESCE(activity_points, 0)) FROM gxp WHERE user_id=? AND date >= ? AND date <= ?",
-                    [user_id, six_days_ago, one_day_ago]
+                    "SELECT SUM(COALESCE(activity_points, 0)) FROM gxp WHERE user_id=?",
+                    [user_id]
                 )
                 ap_row = await ap_cursor.fetchone()
                 ap_total = float(ap_row[0]) if ap_row and ap_row[0] is not None else 0.0
-                
                 spent_cursor = await db.execute("SELECT SUM(COALESCE(amount, 0)) FROM shop WHERE user_id=?", [user_id])
                 spent_row = await spent_cursor.fetchone()
                 spent = float(spent_row[0]) if spent_row and spent_row[0] is not None else 0.0
